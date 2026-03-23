@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digi Watch Widget</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0d0d;
+  --bezel: #1a1a1a;
+  --screen: #0a0f0a;
+  --glow: #00ff88;
+  --glow-dim: rgba(0,255,136,0.15);
+  --glow-mid: rgba(0,255,136,0.4);
+  --text-off: rgba(0,255,136,0.08);
+  --digit-font: 'Share Tech Mono', monospace;
+  --ui-font: 'DM Sans', sans-serif;
+  --shadow: 0 0 24px rgba(0,255,136,0.3), 0 0 60px rgba(0,255,136,0.1);
+  --tick: #00ff88;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: #111;
+  font-family: var(--ui-font);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  gap: 28px;
+}
+
+/* ── WATCH SHELL ──────────────────────────── */
+.watch-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.bezel {
+  background: var(--bezel);
+  border-radius: 28px;
+  padding: 6px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05),
+    0 8px 40px rgba(0,0,0,0.8),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  position: relative;
+}
+
+/* Crown / side button */
+.crown {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 32px;
+  background: linear-gradient(to right, #2a2a2a, #1a1a1a);
+  border-radius: 0 4px 4px 0;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.6);
+}
+
+.screen {
+  background: var(--screen);
+  border-radius: 22px;
+  padding: 28px 30px 24px;
+  width: 320px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.6);
+}
+
+/* subtle scanline overlay */
+.screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  border-radius: 22px;
+  z-index: 1;
+}
+
+/* screen reflection */
+.screen::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 60%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.025), transparent);
+  border-radius: 22px 22px 0 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── DATE ROW ─────────────────────────────── */
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 3;
+  width: 100%;
+  justify-content: center;
+}
+
+.date-chip {
+  font-family: var(--digit-font);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--glow);
+  opacity: 0.55;
+  text-transform: uppercase;
+}
+
+.date-val {
+  font-family: var(--digit-font);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--glow);
+  opacity: 0.75;
+}
+
+/* ── MAIN TIME ────────────────────────────── */
+.time-display {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  z-index: 3;
+  position: relative;
+}
+
+.digit-group {
+  display: flex;
+  gap: 3px;
+}
+
+.digit {
+  font-family: var(--digit-font);
+  font-size: 72px;
+  line-height: 1;
+  color: var(--glow);
+  text-shadow: var(--shadow);
+  position: relative;
+  width: 46px;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+/* ghost/off-state digit background */
+.digit::before {
+  content: attr(data-ghost);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-off);
+  text-shadow: none;
+  font-size: 72px;
+  font-family: var(--digit-font);
+  line-height: 1;
+  width: 46px;
+  text-align: center;
+}
+
+.colon {
+  font-family: var(--digit-font);
+  font-size: 72px;
+  color: var(--glow);
+  text-shadow: var(--shadow);
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+  animation: blink 1s step-end infinite;
+  position: relative;
+  top: -3px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+/* ── SECONDS BAR ──────────────────────────── */
+.sec-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 3;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.sec-label {
+  font-family: var(--digit-font);
+  font-size: 10px;
+  color: var(--glow);
+  opacity: 0.4;
+  letter-spacing: 0.1em;
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sec-bar-track {
+  flex: 1;
+  height: 3px;
+  background: var(--text-off);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.sec-bar-fill {
+  height: 100%;
+  background: var(--glow);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--glow);
+  transition: width 0.25s linear;
+  width: 0%;
+}
+
+.sec-num {
+  font-family: var(--digit-font);
+  font-size: 11px;
+  color: var(--glow);
+  opacity: 0.55;
+  letter-spacing: 0.05em;
+  width: 20px;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+/* ── AMPM + TZ ROW ────────────────────────── */
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  z-index: 3;
+  padding: 0 2px;
+  margin-top: -4px;
+}
+
+.ampm {
+  font-family: var(--digit-font);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--glow);
+  opacity: 0.5;
+}
+
+.tz-label {
+  font-family: var(--digit-font);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--glow);
+  opacity: 0.3;
+  text-transform: uppercase;
+}
+
+/* ── DOT INDICATORS ───────────────────────── */
+.dots-row {
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+  margin-top: 2px;
+}
+
+.ind-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--glow);
+  opacity: 0.2;
+  transition: opacity 0.3s, box-shadow 0.3s;
+}
+
+.ind-dot.active {
+  opacity: 0.9;
+  box-shadow: 0 0 6px var(--glow);
+}
+
+/* ── STRAP ────────────────────────────────── */
+.strap {
+  width: 180px;
+  height: 32px;
+  background: linear-gradient(to bottom, #1e1e1e, #161616);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.strap-hole {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.strap-top {
+  border-radius: 8px 8px 0 0;
+}
+
+/* ── CUSTOMIZER ───────────────────────────── */
+.customizer {
+  width: 320px;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.cust-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.cust-header.open { border-color: #2a2a2a; }
+
+.cust-title {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #555;
+  text-transform: uppercase;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.cust-arrow {
+  color: #444;
+  font-size: 13px;
+  transition: transform 0.2s;
+}
+.cust-arrow.open { transform: rotate(180deg); }
+
+.cust-body {
+  display: none;
+  padding: 16px;
+  flex-direction: column;
+  gap: 18px;
+}
+.cust-body.open { display: flex; }
+
+.cust-section-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #444;
+  font-family: 'Share Tech Mono', monospace;
+  margin-bottom: 8px;
+}
+
+/* color palette */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.swatch:hover { transform: scale(1.2); }
+.swatch.active { border-color: #fff; }
+.swatch.active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* toggle */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-lbl {
+  font-size: 12px;
+  color: #666;
+}
+
+.tog {
+  width: 34px;
+  height: 18px;
+  background: #2a2a2a;
+  border-radius: 9px;
+  cursor: pointer;
+  border: none;
+  position: relative;
+  transition: background 0.2s;
+  outline: none;
+}
+.tog.on { background: var(--glow); }
+.tog::after {
+  content:'';
+  position: absolute;
+  width: 12px; height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px; left: 3px;
+  transition: left 0.2s, background 0.2s;
+}
+.tog.on::after { left: 19px; background: #0a0f0a; }
+
+/* screen presets */
+.screen-presets {
+  display: flex;
+  gap: 6px;
+}
+
+.preset-btn {
+  flex: 1;
+  padding: 7px 0;
+  font-size: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0.06em;
+  border: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  color: #555;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.preset-btn:hover { border-color: #444; color: #888; }
+.preset-btn.active { border-color: var(--glow); color: var(--glow); background: rgba(0,255,136,0.05); }
+
+/* embed box */
+.embed-box {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-family: 'Share Tech Mono', monospace;
+  color: #444;
+  word-break: break-all;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.embed-box:hover { background: #222; color: #666; }
+.embed-hint {
+  font-size: 10px;
+  color: #333;
+  font-family: 'Share Tech Mono', monospace;
+  margin-top: 5px;
+  letter-spacing: 0.03em;
+}
+
+/* footer */
+.footer {
+  font-size: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  color: #2a2a2a;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.footer a { color: #3a3a3a; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- ── WATCH ───────────────────────────────────── -->
+<div class="watch-wrap">
+  <!-- top strap -->
+  <div class="strap strap-top">
+    <div class="strap-hole"></div>
+    <div class="strap-hole"></div>
+    <div class="strap-hole"></div>
+  </div>
+
+  <div class="bezel">
+    <div class="crown"></div>
+    <div class="screen" id="screen">
+
+      <!-- date -->
+      <div class="date-row">
+        <span class="date-chip" id="dayName">MON</span>
+        <span class="date-val" id="dateVal">01 / 01</span>
+      </div>
+
+      <!-- time -->
+      <div class="time-display">
+        <div class="digit-group">
+          <div class="digit" id="h1" data-ghost="8">0</div>
+          <div class="digit" id="h2" data-ghost="8">0</div>
+        </div>
+        <div class="colon">:</div>
+        <div class="digit-group">
+          <div class="digit" id="m1" data-ghost="8">0</div>
+          <div class="digit" id="m2" data-ghost="8">0</div>
+        </div>
+      </div>
+
+      <!-- seconds bar -->
+      <div class="sec-row">
+        <span class="sec-label">SEC</span>
+        <div class="sec-bar-track">
+          <div class="sec-bar-fill" id="secFill"></div>
+        </div>
+        <span class="sec-num" id="secNum">00</span>
+      </div>
+
+      <!-- am/pm + tz -->
+      <div class="meta-row">
+        <span class="ampm" id="ampm">AM</span>
+        <span class="tz-label" id="tzLabel">UTC+0</span>
+      </div>
+
+      <!-- indicator dots -->
+      <div class="dots-row">
+        <div class="ind-dot active" id="dot0"></div>
+        <div class="ind-dot" id="dot1"></div>
+        <div class="ind-dot" id="dot2"></div>
+        <div class="ind-dot" id="dot3"></div>
+        <div class="ind-dot" id="dot4"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- bottom strap -->
+  <div class="strap">
+    <div class="strap-hole"></div>
+    <div class="strap-hole"></div>
+    <div class="strap-hole"></div>
+  </div>
+</div>
+
+<!-- ── CUSTOMIZER ──────────────────────────────── -->
+<div class="customizer">
+  <div class="cust-header" id="custHdr" onclick="toggleCust()">
+    <span class="cust-title">Customize</span>
+    <span class="cust-arrow" id="custArrow">&#8964;</span>
+  </div>
+  <div class="cust-body" id="custBody">
+
+    <!-- glow color -->
+    <div>
+      <div class="cust-section-label">Glow color</div>
+      <div class="palette" id="palette"></div>
+    </div>
+
+    <!-- screen preset -->
+    <div>
+      <div class="cust-section-label">Screen preset</div>
+      <div class="screen-presets">
+        <button class="preset-btn active" data-p="dark" onclick="setPreset('dark',this)">Dark</button>
+        <button class="preset-btn" data-p="dim" onclick="setPreset('dim',this)">Dim</button>
+        <button class="preset-btn" data-p="light" onclick="setPreset('light',this)">Light</button>
+        <button class="preset-btn" data-p="oled" onclick="setPreset('oled',this)">OLED</button>
+      </div>
+    </div>
+
+    <!-- toggles -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="toggle-row">
+        <span class="toggle-lbl">24-hour format</span>
+        <button class="tog" id="t24h" onclick="toggle24h(this)"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Show seconds bar</span>
+        <button class="tog on" id="tSec" onclick="toggleEl('sec-row',this)"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Show date</span>
+        <button class="tog on" id="tDate" onclick="toggleEl('date-row',this)"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Scanlines effect</span>
+        <button class="tog on" id="tScan" onclick="toggleScan(this)"></button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Compact (Notion embed)</span>
+        <button class="tog" id="tCompact" onclick="toggleCompact(this)"></button>
+      </div>
+    </div>
+
+    <!-- embed -->
+    <div>
+      <div class="cust-section-label">Embed in Notion</div>
+      <div class="embed-box" onclick="copyEmbed()" id="embedBox">https://your-username.github.io/notion-watch/</div>
+      <div class="embed-hint" id="embedHint">↑ click to copy &nbsp;·&nbsp; paste as /embed in Notion</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  notion-watch &nbsp;·&nbsp; <a href="https://github.com" target="_blank">github.com/your-username/notion-watch</a>
+</div>
+
+<script>
+// ── COLORS ────────────────────────────────────────
+const COLORS = [
+  { hex:'#00ff88', bg:'rgba(0,255,136,0.15)', dim:'rgba(0,255,136,0.08)', shadow:'0 0 24px rgba(0,255,136,0.35),0 0 60px rgba(0,255,136,0.12)' },
+  { hex:'#00cfff', bg:'rgba(0,207,255,0.15)', dim:'rgba(0,207,255,0.08)', shadow:'0 0 24px rgba(0,207,255,0.35),0 0 60px rgba(0,207,255,0.12)' },
+  { hex:'#ff6b35', bg:'rgba(255,107,53,0.15)', dim:'rgba(255,107,53,0.08)', shadow:'0 0 24px rgba(255,107,53,0.35),0 0 60px rgba(255,107,53,0.12)' },
+  { hex:'#ff3cac', bg:'rgba(255,60,172,0.15)', dim:'rgba(255,60,172,0.08)', shadow:'0 0 24px rgba(255,60,172,0.35),0 0 60px rgba(255,60,172,0.12)' },
+  { hex:'#ffe566', bg:'rgba(255,229,102,0.15)', dim:'rgba(255,229,102,0.08)', shadow:'0 0 24px rgba(255,229,102,0.35),0 0 60px rgba(255,229,102,0.12)' },
+  { hex:'#a78bfa', bg:'rgba(167,139,250,0.15)', dim:'rgba(167,139,250,0.08)', shadow:'0 0 24px rgba(167,139,250,0.35),0 0 60px rgba(167,139,250,0.12)' },
+  { hex:'#ffffff', bg:'rgba(255,255,255,0.12)', dim:'rgba(255,255,255,0.06)', shadow:'0 0 24px rgba(255,255,255,0.3),0 0 60px rgba(255,255,255,0.08)' },
+];
+
+const PRESETS = {
+  dark:  { screen:'#0a0f0a', bezel:'#1a1a1a' },
+  dim:   { screen:'#0d1117', bezel:'#161b22' },
+  light: { screen:'#1a2030', bezel:'#242836' },
+  oled:  { screen:'#000000', bezel:'#0d0d0d' },
+};
+
+const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+let is24h = false;
+let colorIdx = 0;
+
+// ── BUILD PALETTE ─────────────────────────────────
+const pal = document.getElementById('palette');
+COLORS.forEach((c, i) => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.style.background = c.hex;
+  s.onclick = () => setColor(i);
+  pal.appendChild(s);
+});
+
+// ── SET COLOR ─────────────────────────────────────
+function setColor(i) {
+  colorIdx = i;
+  const c = COLORS[i];
+  const r = document.documentElement;
+  r.style.setProperty('--glow', c.hex);
+  r.style.setProperty('--glow-dim', c.bg);
+  r.style.setProperty('--glow-mid', c.bg);
+  r.style.setProperty('--text-off', c.dim);
+  r.style.setProperty('--shadow', c.shadow);
+  r.style.setProperty('--tick', c.hex);
+  document.querySelectorAll('.swatch').forEach((s,j) => s.classList.toggle('active', j===i));
+  document.querySelectorAll('.tog.on').forEach(t => t.style.background = c.hex);
+  localStorage.setItem('nw-color', i);
+}
+
+// ── SET PRESET ────────────────────────────────────
+function setPreset(p, btn) {
+  const pr = PRESETS[p];
+  document.documentElement.style.setProperty('--screen', pr.screen);
+  document.documentElement.style.setProperty('--bezel', pr.bezel);
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.toggle('active', b===btn));
+  localStorage.setItem('nw-preset', p);
+}
+
+// ── CLOCK ─────────────────────────────────────────
+function tick() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+
+  let displayH = h, ampm = '';
+  if (!is24h) {
+    ampm = h >= 12 ? 'PM' : 'AM';
+    displayH = h % 12 || 12;
+  }
+
+  const hStr = displayH.toString().padStart(2,'0');
+  const mStr = m.toString().padStart(2,'0');
+  const sStr = s.toString().padStart(2,'0');
+
+  document.getElementById('h1').textContent = hStr[0];
+  document.getElementById('h2').textContent = hStr[1];
+  document.getElementById('m1').textContent = mStr[0];
+  document.getElementById('m2').textContent = mStr[1];
+
+  document.getElementById('secNum').textContent = sStr;
+  document.getElementById('secFill').style.width = ((s / 59) * 100) + '%';
+
+  document.getElementById('ampm').textContent = is24h ? '24H' : ampm;
+
+  // date
+  document.getElementById('dayName').textContent = DAYS[now.getDay()];
+  const mo = (now.getMonth()+1).toString().padStart(2,'0');
+  const dy = now.getDate().toString().padStart(2,'0');
+  document.getElementById('dateVal').textContent = `${mo} / ${dy}`;
+
+  // timezone
+  const tzOffset = -now.getTimezoneOffset();
+  const tzH = Math.floor(Math.abs(tzOffset)/60);
+  const tzM = Math.abs(tzOffset)%60;
+  const tzSign = tzOffset >= 0 ? '+' : '-';
+  document.getElementById('tzLabel').textContent = tzM
+    ? `UTC${tzSign}${tzH}:${tzM.toString().padStart(2,'0')}`
+    : `UTC${tzSign}${tzH}`;
+
+  // indicator dots — light up based on hour quarter
+  const quarter = Math.floor((h % 12) / 3);
+  for (let d = 0; d < 5; d++) {
+    document.getElementById('dot' + d).classList.toggle('active', d <= quarter);
+  }
+}
+
+setInterval(tick, 1000);
+tick();
+
+// ── TOGGLES ───────────────────────────────────────
+function toggle24h(btn) {
+  is24h = !is24h;
+  btn.classList.toggle('on', is24h);
+  syncToggleColors();
+  localStorage.setItem('nw-24h', is24h ? '1' : '');
+  tick();
+}
+
+function toggleEl(cls, btn) {
+  const els = document.querySelectorAll('.' + cls);
+  const showing = btn.classList.toggle('on');
+  els.forEach(e => e.style.display = showing ? '' : 'none');
+  syncToggleColors();
+  localStorage.setItem('nw-' + cls, showing ? '1' : '');
+}
+
+function toggleScan(btn) {
+  const on = btn.classList.toggle('on');
+  document.getElementById('screen').style.setProperty(
+    '--scan-opacity', on ? '1' : '0'
+  );
+  // toggle scanline via class
+  document.getElementById('screen').classList.toggle('no-scan', !on);
+  syncToggleColors();
+  localStorage.setItem('nw-scan', on ? '1' : '');
+}
+
+function toggleCompact(btn) {
+  const on = btn.classList.toggle('on');
+  const screen = document.getElementById('screen');
+  if (on) {
+    screen.style.width = '220px';
+    screen.style.padding = '18px 20px 16px';
+    document.querySelectorAll('.digit').forEach(d => d.style.fontSize = '52px');
+    document.querySelector('.colon').style.fontSize = '52px';
+    document.querySelector('.bezel').style.borderRadius = '20px';
+    screen.style.borderRadius = '16px';
+    document.getElementById('embedHint').textContent = '↑ click to copy · recommended: 280 × 260px';
+  } else {
+    screen.style.width = '320px';
+    screen.style.padding = '28px 30px 24px';
+    document.querySelectorAll('.digit').forEach(d => d.style.fontSize = '72px');
+    document.querySelector('.colon').style.fontSize = '72px';
+    document.querySelector('.bezel').style.borderRadius = '28px';
+    screen.style.borderRadius = '22px';
+    document.getElementById('embedHint').textContent = '↑ click to copy · paste as /embed in Notion';
+  }
+  syncToggleColors();
+  localStorage.setItem('nw-compact', on ? '1' : '');
+}
+
+function syncToggleColors() {
+  const c = COLORS[colorIdx].hex;
+  document.querySelectorAll('.tog.on').forEach(t => t.style.background = c);
+  document.querySelectorAll('.tog:not(.on)').forEach(t => t.style.background = '');
+}
+
+// ── CUSTOMIZER OPEN/CLOSE ─────────────────────────
+function toggleCust() {
+  document.getElementById('custBody').classList.toggle('open');
+  document.getElementById('custArrow').classList.toggle('open');
+  document.getElementById('custHdr').classList.toggle('open');
+}
+
+// ── EMBED COPY ────────────────────────────────────
+function copyEmbed() {
+  const url = document.getElementById('embedBox').textContent.trim();
+  navigator.clipboard.writeText(url).then(() => {
+    const box = document.getElementById('embedBox');
+    const orig = box.textContent;
+    box.textContent = 'Copied! ✓';
+    setTimeout(() => box.textContent = orig, 1500);
+  });
+}
+
+// ── RESTORE PREFS ─────────────────────────────────
+(function restorePrefs() {
+  const ci = parseInt(localStorage.getItem('nw-color') || '0');
+  setColor(ci);
+
+  const pr = localStorage.getItem('nw-preset');
+  if (pr) {
+    const btn = document.querySelector(`.preset-btn[data-p="${pr}"]`);
+    if (btn) setPreset(pr, btn);
+  }
+
+  if (localStorage.getItem('nw-24h') === '1') {
+    is24h = true;
+    document.getElementById('t24h').classList.add('on');
+  }
+
+  ['sec-row','date-row'].forEach(cls => {
+    if (localStorage.getItem('nw-' + cls) === '') {
+      const btn = document.getElementById('t' + cls.replace('-row','').replace('sec','Sec').replace('date','Date'));
+      if (btn) { btn.classList.remove('on'); document.querySelectorAll('.'+cls).forEach(e => e.style.display='none'); }
+    }
+  });
+
+  if (localStorage.getItem('nw-scan') === '') {
+    document.getElementById('tScan').classList.remove('on');
+    document.getElementById('screen').classList.add('no-scan');
+  }
+
+  if (localStorage.getItem('nw-compact') === '1') {
+    toggleCompact(document.getElementById('tCompact'));
+  }
+
+  syncToggleColors();
+})();
+</script>
+
+<style>
+.screen.no-scan::before { display: none; }
+</style>
+</body>
+</html>
